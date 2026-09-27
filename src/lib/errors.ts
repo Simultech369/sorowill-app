@@ -15,20 +15,33 @@ export function isWillNotFoundMessage(message: string): boolean {
   );
 }
 
+export function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object') {
+    const obj = error as Record<string, unknown>;
+    if (typeof obj.message === 'string') return obj.message;
+    if (typeof obj.error === 'string') return obj.error;
+    if (typeof obj.details === 'string') return obj.details;
+  }
+  return '';
+}
+
 export function isWillNotFoundError(error: unknown): boolean {
-  return error instanceof Error && isWillNotFoundMessage(error.message);
+  if (error instanceof Error) {
+    return isWillNotFoundMessage(error.message);
+  }
+  return isWillNotFoundMessage(extractErrorMessage(error));
 }
 
 const KNOWN_ERROR_PATTERNS: ReadonlyArray<{
   test: (message: string) => boolean;
   friendly: string;
 }> = [
-  {
-    test: (message) =>
-      message.toLowerCase().includes('network') || message.toLowerCase().includes('fetch'),
-    friendly:
-      'Unable to reach the blockchain network. Please check your connection and try again.',
-  },
   {
     test: (message) =>
       message.toLowerCase().includes('contract') &&
@@ -38,6 +51,24 @@ const KNOWN_ERROR_PATTERNS: ReadonlyArray<{
   {
     test: (message) => isWillNotFoundMessage(message),
     friendly: 'This will was not found on the blockchain.',
+  },
+  {
+    test: (message) => {
+      const msg = message.toLowerCase();
+      return (
+        msg.includes('network') ||
+        msg.includes('fetch') ||
+        msg.includes('connection') ||
+        msg.includes('connect') ||
+        msg.includes('timeout') ||
+        msg.includes('rpc') ||
+        msg.includes('econnrefused') ||
+        msg.includes('offline') ||
+        msg.includes('unreachable')
+      );
+    },
+    friendly:
+      'Unable to reach the blockchain network. Please check your connection and try again.',
   },
   {
     test: (message) => message.toLowerCase().includes('simulation'),
@@ -69,9 +100,10 @@ const KNOWN_ERROR_PATTERNS: ReadonlyArray<{
 ];
 
 export function formatError(error: unknown): string {
-  if (error instanceof Error) {
+  const message = extractErrorMessage(error);
+  if (message) {
     for (const pattern of KNOWN_ERROR_PATTERNS) {
-      if (pattern.test(error.message)) {
+      if (pattern.test(message)) {
         return pattern.friendly;
       }
     }

@@ -12,8 +12,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const will = await getSoroWillClient().getWill(id);
     title = `Inheritance — Will #${will.id}`;
     description = `Claim your inheritance from Will #${will.id}. Status: ${will.status}. Locked balance: ${(Number(will.balance) / 1_000_000).toFixed(2)} USDC. ${will.beneficiaries.length} beneficiaries.`;
-  } catch {
-    // Graceful fallback — if the will fetch fails, keep generic metadata.
+  } catch (err) {
+    // Graceful fallback — log error for debugging and keep generic metadata.
+    console.error('Failed to load will metadata:', err);
   }
 
   return { title, description };

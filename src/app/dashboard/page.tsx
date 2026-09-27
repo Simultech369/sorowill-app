@@ -125,22 +125,25 @@ export default function DashboardPage() {
       if (!isMounted.current) {
         return;
       }
-      setOwnedWills(owned);
-      setInheritingWills(inheriting);
-      setGuardianWills(guardian.wills);
-      setGuardianScanWarning(guardian.hasErrors);
+      setOwnedWills(owned || []);
+      setInheritingWills(inheriting || []);
+      setGuardianWills(guardian?.wills || []);
+      setGuardianScanWarning(Boolean(guardian?.hasErrors));
       setLastFetchTime(new Date());
     } catch (err) {
       if (!isMounted.current) {
         return;
       }
-      setError(formatError(err));
+      console.error('Failed to load dashboard wills:', err);
+      const message = formatError(err);
+      setError(message);
+      toast.error('Could not load will — check your connection');
     } finally {
       if (isMounted.current) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [toast]);
 
   const handleRetry = useCallback(() => {
     if (publicKey) {
@@ -158,17 +161,18 @@ export default function DashboardPage() {
         client.getWillsByBeneficiary(publicKey),
         getWillsByGuardian(publicKey),
       ]);
-      setOwnedWills(owned);
-      setInheritingWills(inheriting);
-      setGuardianWills(guardian.wills);
-      setGuardianScanWarning(guardian.hasErrors);
+      setOwnedWills(owned || []);
+      setInheritingWills(inheriting || []);
+      setGuardianWills(guardian?.wills || []);
+      setGuardianScanWarning(Boolean(guardian?.hasErrors));
       setLastFetchTime(new Date());
       setError(null);
       toast.success('Data refreshed');
     } catch (err) {
+      console.error('Failed to refresh dashboard wills:', err);
       const message = formatError(err);
       setError(message);
-      toast.error(message);
+      toast.error('Could not load will — check your connection');
     } finally {
       setIsRefreshing(false);
     }
@@ -292,7 +296,7 @@ export default function DashboardPage() {
   }
 
   const baseList =
-    tab === 'owned' ? ownedWills : tab === 'inheriting' ? inheritingWills : guardianWills;
+    (tab === 'owned' ? ownedWills : tab === 'inheriting' ? inheritingWills : guardianWills) || [];
 
   const activeList = baseList.filter(
     (will) =>
@@ -304,7 +308,7 @@ export default function DashboardPage() {
   // getWillsByGuardian returns every will the address is listed on, including
   // Cancelled/Released ones. Only wills still in force (Active or in their
   // grace period) represent a live guardian responsibility.
-  const activeGuardianWills = guardianWills.filter(
+  const activeGuardianWills = (guardianWills || []).filter(
     (will) => will.status === WillStatus.Active || will.status === WillStatus.Triggered,
   );
 
@@ -504,7 +508,19 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {error ? (
+      {error && !loading && !ownedWills.length && !inheritingWills.length && !guardianWills.length ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center" role="alert">
+          <h1 className="text-lg font-semibold text-red-300">Could not load will — check your connection</h1>
+          <p className="mt-2 text-sm text-red-300/70">{error}</p>
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="mt-4 rounded-full border border-red-400/40 px-4 py-2 text-sm text-red-300 transition hover:border-red-400/70"
+          >
+            Try again
+          </button>
+        </div>
+      ) : error ? (
         <div className="text-sm text-red-400 flex items-center gap-3" role="alert">
           <span>{error}</span>
           <button

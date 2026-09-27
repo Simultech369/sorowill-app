@@ -48,13 +48,16 @@ export default function InheritPageClient({ id }: { id: string }) {
       if (!isMounted.current) {
         return;
       }
-      setError(formatError(err));
+      console.error('Failed to load will for inheritance:', err);
+      const message = formatError(err);
+      setError(message);
+      toast.error('Could not load will — check your connection');
     } finally {
       if (isMounted.current) {
         setLoading(false);
       }
     }
-  }, [willId]);
+  }, [willId, toast]);
 
   useEffect(() => {
     void safeGetPublicKey().then((key) => {
@@ -108,8 +111,8 @@ export default function InheritPageClient({ id }: { id: string }) {
 
   if (error && !will) {
     return (
-      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center">
-        <h1 className="text-lg font-semibold text-red-300">Couldn&apos;t load this will</h1>
+      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-8 text-center" role="alert">
+        <h1 className="text-lg font-semibold text-red-300">Could not load will — check your connection</h1>
         <p className="mt-2 text-sm text-red-300/70">{error}</p>
         <button
           type="button"
